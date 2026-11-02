@@ -1,0 +1,38 @@
+{
+  "seed": 42,
+  "cnn_epochs": 10,
+  "head_epochs": 10,
+  "tune_epochs": 8,
+  "patience": 3,
+  "batch_size": 32,
+  "device": "cuda",
+  "hardware": "NVIDIA GeForce RTX 3050 6GB Laptop GPU",
+  "versions": {
+    "python": "3.13.9",
+    "torch": "2.7.1+cu128",
+    "torchvision": "0.22.1+cu128",
+    "numpy": "2.5.2"
+  },
+  "manifest_sha256": "165bf1cfc22f5588c727f2bd693399e75b6453960ffd765071ddd5941612811d",
+  "classes": [
+    "cardboard",
+    "glass",
+    "metal",
+    "paper",
+    "plastic",
+    "trash"
+  ],
+  "selection": "validation macro-F1",
+  "input_size": 224,
+  "weights": "MobileNet_V2_Weights.IMAGENET1K_V2",
+  "loss": "class-weighted cross entropy; weights from training only",
+  "optimizer": "AdamW, weight_decay=0.0001",
+  "learning_rates": {
+    "cnn": 0.001,
+    "head": 0.001,
+    "finetune_backbone": 0.0001,
+    "finetune_head": 0.0005
+  },
+  "augmentation": "RandomResizedCrop(224, scale=.7..1), horizontal flip, rotation 15, color jitter .15/.15/.1",
+  "determinism": "Seeded; deterministic cuDNN; exact equality across hardware/versions is not guaranteed."
+}

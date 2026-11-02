@@ -1,0 +1,184 @@
+{
+  "raw_valid_images": 2527,
+  "kept_images": 2521,
+  "excluded": [
+    {
+      "path": "glass/glass115.jpg",
+      "reason": "conflicting exact duplicate"
+    },
+    {
+      "path": "metal/metal91.jpg",
+      "reason": "conflicting exact duplicate"
+    },
+    {
+      "path": "glass/glass176.jpg",
+      "reason": "conflicting exact duplicate"
+    },
+    {
+      "path": "plastic/plastic152.jpg",
+      "reason": "conflicting exact duplicate"
+    },
+    {
+      "path": "glass/glass389.jpg",
+      "reason": "conflicting exact duplicate"
+    },
+    {
+      "path": "plastic/plastic332.jpg",
+      "reason": "conflicting exact duplicate"
+    }
+  ],
+  "near_duplicate_pairs": [
+    {
+      "first": "cardboard/cardboard15.jpg",
+      "second": "cardboard/cardboard361.jpg",
+      "distance": 2
+    },
+    {
+      "first": "cardboard/cardboard386.jpg",
+      "second": "cardboard/cardboard72.jpg",
+      "distance": 2
+    },
+    {
+      "first": "metal/metal120.jpg",
+      "second": "metal/metal50.jpg",
+      "distance": 4
+    },
+    {
+      "first": "metal/metal155.jpg",
+      "second": "metal/metal6.jpg",
+      "distance": 2
+    },
+    {
+      "first": "paper/paper101.jpg",
+      "second": "paper/paper108.jpg",
+      "distance": 2
+    },
+    {
+      "first": "paper/paper180.jpg",
+      "second": "paper/paper284.jpg",
+      "distance": 4
+    },
+    {
+      "first": "paper/paper305.jpg",
+      "second": "paper/paper308.jpg",
+      "distance": 0
+    },
+    {
+      "first": "paper/paper246.jpg",
+      "second": "paper/paper349.jpg",
+      "distance": 2
+    },
+    {
+      "first": "paper/paper185.jpg",
+      "second": "paper/paper390.jpg",
+      "distance": 2
+    },
+    {
+      "first": "paper/paper152.jpg",
+      "second": "paper/paper392.jpg",
+      "distance": 2
+    },
+    {
+      "first": "paper/paper2.jpg",
+      "second": "paper/paper40.jpg",
+      "distance": 2
+    },
+    {
+      "first": "paper/paper345.jpg",
+      "second": "paper/paper451.jpg",
+      "distance": 4
+    },
+    {
+      "first": "paper/paper459.jpg",
+      "second": "paper/paper466.jpg",
+      "distance": 2
+    },
+    {
+      "first": "paper/paper135.jpg",
+      "second": "paper/paper496.jpg",
+      "distance": 4
+    },
+    {
+      "first": "paper/paper314.jpg",
+      "second": "paper/paper53.jpg",
+      "distance": 2
+    },
+    {
+      "first": "paper/paper522.jpg",
+      "second": "paper/paper534.jpg",
+      "distance": 2
+    },
+    {
+      "first": "paper/paper123.jpg",
+      "second": "paper/paper547.jpg",
+      "distance": 4
+    },
+    {
+      "first": "paper/paper176.jpg",
+      "second": "paper/paper549.jpg",
+      "distance": 4
+    },
+    {
+      "first": "paper/paper457.jpg",
+      "second": "paper/paper553.jpg",
+      "distance": 4
+    },
+    {
+      "first": "paper/paper540.jpg",
+      "second": "paper/paper56.jpg",
+      "distance": 2
+    },
+    {
+      "first": "paper/paper68.jpg",
+      "second": "paper/paper74.jpg",
+      "distance": 4
+    },
+    {
+      "first": "paper/paper474.jpg",
+      "second": "paper/paper89.jpg",
+      "distance": 4
+    },
+    {
+      "first": "paper/paper147.jpg",
+      "second": "paper/paper99.jpg",
+      "distance": 2
+    },
+    {
+      "first": "metal/metal154.jpg",
+      "second": "plastic/plastic10.jpg",
+      "distance": 4
+    },
+    {
+      "first": "metal/metal159.jpg",
+      "second": "plastic/plastic11.jpg",
+      "distance": 2
+    }
+  ],
+  "manifest_sha256": "165bf1cfc22f5588c727f2bd693399e75b6453960ffd765071ddd5941612811d",
+  "splits": {
+    "train": {
+      "cardboard": 279,
+      "glass": 347,
+      "metal": 288,
+      "paper": 417,
+      "plastic": 336,
+      "trash": 96
+    },
+    "validation": {
+      "cardboard": 64,
+      "glass": 73,
+      "metal": 60,
+      "paper": 87,
+      "plastic": 73,
+      "trash": 22
+    },
+    "test": {
+      "cardboard": 60,
+      "glass": 78,
+      "metal": 61,
+      "paper": 90,
+      "plastic": 71,
+      "trash": 19
+    }
+  }
+}
