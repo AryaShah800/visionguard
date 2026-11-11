@@ -2,6 +2,14 @@
 
 **Waste image classification with reproducible transfer learning and honest evaluation.**
 
+[![Tests](https://github.com/AryaShah800/visionguard/actions/workflows/tests.yml/badge.svg)](https://github.com/AryaShah800/visionguard/actions/workflows/tests.yml)
+
+| Model | Result on 379 held-out TrashNet images |
+| --- | --- |
+| Fine-tuned MobileNetV2 (selected) | 89.75% macro-F1 (single seed) |
+| Frozen MobileNetV2 | 80.85% macro-F1 |
+| Small CNN from scratch | 63.23% macro-F1 |
+
 VisionGuard compares a small CNN trained from scratch, an ImageNet-pretrained MobileNetV2 with a frozen backbone, and a partially fine-tuned MobileNetV2. It predicts one of six TrashNet categories: cardboard, glass, metal, paper, plastic and trash.
 
 The final model is selected using validation macro-F1. A separate command evaluates the held-out test set and produces a comparison table, confusion matrix, training curves, error gallery and latency measurements. A local Streamlit app lets you explore predictions and measured results.
@@ -96,9 +104,14 @@ vg/predict.py    shared local inference used by the CLI and app
 vg/challenge.py  independent-photo lock and evaluation
 app.py          local Streamlit demo
 tests/          correctness and integration checks
-docs/           collection guide and interview walkthrough
+docs/           phone-photo collection guide
 reports/        portable, measured experiment evidence
 ```
+
+## Results at a glance
+
+![Confusion matrix](reports/confusion_matrix.png)
+![Training curves](reports/training_curves.png)
 
 ## Limitations
 
@@ -109,3 +122,7 @@ This is a small, historical single-item dataset with mostly simple backgrounds. 
 Dataset: Gary Thung and Mindy Yang, [TrashNet](https://github.com/garythung/trashnet). Cite the source if redistributing derived image figures; the repository includes an MIT license. Downloaded images and weights are not committed with this project. See the source's current terms before redistributing raw datasets.
 
 Training references: [PyTorch transfer learning tutorial](https://docs.pytorch.org/tutorials/beginner/transfer_learning_tutorial.html) and [Torchvision MobileNetV2](https://docs.pytorch.org/vision/stable/models/generated/torchvision.models.mobilenet_v2.html).
+
+## License
+
+MIT. See [LICENSE](LICENSE). TrashNet is credited under Attribution above.
