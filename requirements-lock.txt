@@ -49,7 +49,7 @@ starlette==1.10.0
 streamlit==1.66.1
 sympy==1.14.0
 threadpoolctl==3.7.0
-torch==2.7.1+cu128
+torch==2.13.0
 torchvision==0.22.1+cu128
 typing_extensions==4.16.0
 tzdata==2026.5
