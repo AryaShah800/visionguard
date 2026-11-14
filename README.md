@@ -2,6 +2,8 @@
 
 **Waste image classification with reproducible transfer learning and honest evaluation.**
 
+The [FastAPI serving guide](docs/SERVING.md) includes a tested CPU Docker image, upload validation and MLflow import of the measured experiments. This is a local service; no public Hugging Face deployment is claimed.
+
 [![Tests](https://github.com/AryaShah800/visionguard/actions/workflows/tests.yml/badge.svg)](https://github.com/AryaShah800/visionguard/actions/workflows/tests.yml)
 
 | Model | Result on 379 held-out TrashNet images |
