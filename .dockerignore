@@ -1,0 +1,14 @@
+# Allowlist: only the package, the serving requirements and the verified checkpoints
+# enter the build context. data/ (images, manifests, phone photos), .env, .venv, .git,
+# evaluation outputs and training history all stay out.
+*
+!vg/
+!vg/**
+!requirements-api.txt
+!runs/baseline/selection.json
+!runs/baseline/cnn.pt
+!runs/baseline/frozen.pt
+!runs/baseline/finetuned.pt
+
+**/__pycache__
+**/*.pyc

@@ -7,3 +7,6 @@ __pycache__/
 .env
 .test-temp/
 .test-temp-*/
+mlflow.db
+mlruns/
+mlartifacts/
