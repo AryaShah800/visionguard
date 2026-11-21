@@ -15,7 +15,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from PIL import Image, UnidentifiedImageError
 
 from . import __version__
@@ -184,11 +184,13 @@ def decode_image(data, max_pixels):
     return image
 
 
-def create_app(loader=load_predictor, predict=predict_image, run_dir=None,
+def create_app(loader=load_predictor, predict=predict_image, run_dir=None, explain=None,
                max_upload_bytes=MAX_UPLOAD_BYTES, max_pixels=MAX_PIXELS, preload=None):
     """Builds the API. `loader(run_dir) -> (model, checkpoint)` and `predict(image, model, checkpoint)`
     default to vg.predict; tests inject fakes. `run_dir=None` reads VG_RUN_DIR at load time."""
     holder = LazyPredictor(loader, run_dir)
+    if explain is None:
+        from .explain import overlay_png_bytes as explain
     too_large = too_large_message(max_upload_bytes)
 
     @asynccontextmanager
@@ -248,7 +250,42 @@ def create_app(loader=load_predictor, predict=predict_image, run_dir=None,
                 'top_three': [{'class': item['class'], 'score': float(item['score'])} for item in result['top_three'][:3]],
                 'threshold': result.get('threshold'), 'model': result.get('model'), 'note': result.get('note')}
 
+    def explain_image_bytes(data):
+        image = decode_image(data, max_pixels)
+        try:
+            model, checkpoint = holder.get()
+            try:
+                return explain(image, model, checkpoint)
+            except ValueError:
+                raise HTTPException(422, 'The image could not be explained.') from None
+        finally:
+            image.close()
+
+    @app.post('/explain', response_class=Response, responses={200: {'content': {'image/png': {}}}})
+    async def explain_endpoint(file: UploadFile = File(...)):
+        """Grad-CAM overlay (PNG) for the predicted class. Header X-Prediction carries the class name."""
+        content_type = (file.content_type or '').split(';')[0].strip().lower()
+        if content_type and content_type not in ALLOWED_CONTENT_TYPES:
+            raise HTTPException(415, UNSUPPORTED)
+        data = await file.read(max_upload_bytes + 1)
+        await file.close()
+        if len(data) > max_upload_bytes:
+            raise HTTPException(413, too_large)
+        if not data:
+            raise HTTPException(400, 'The uploaded file is empty.')
+        png, info = await run_in_threadpool(explain_image_bytes, data)
+        return Response(png, media_type='image/png', headers={'X-Prediction': info['prediction']})
+
     return app
 
 
-app = create_app()
+def create_default_app():
+    """VG_BACKEND=onnx serves the exported int8 model (python scripts/onnx_benchmark.py creates it); default is PyTorch."""
+    if os.environ.get('VG_BACKEND', 'pytorch').lower() == 'onnx':
+        from .onnx_tools import load_onnx_predictor, predict_image_onnx
+        return create_app(loader=load_onnx_predictor, predict=predict_image_onnx,
+                          explain=lambda *a, **k: (_ for _ in ()).throw(HTTPException(501, 'Grad-CAM needs the PyTorch backend.')))
+    return create_app()
+
+
+app = create_default_app()

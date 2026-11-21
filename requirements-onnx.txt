@@ -1,0 +1,4 @@
+# Needed for ONNX export / int8 benchmark / ONNX serving (scripts/onnx_benchmark.py, VG_BACKEND=onnx)
+onnx>=1.17
+onnxruntime>=1.20
+scikit-learn>=1.5,<2

@@ -8,6 +8,7 @@ import streamlit as st
 from PIL import Image, UnidentifiedImageError
 
 from vg.common import CLASSES, ROOT, read_json
+from vg.explain import explain_image
 from vg.predict import load_predictor, predict_image
 
 st.set_page_config(page_title='VisionGuard | Waste image lab', page_icon='♻', layout='wide')
@@ -85,6 +86,12 @@ with classify:
                 st.bar_chart(scores.set_index('Category'), color='#26A77A', horizontal=True)
                 st.dataframe(scores, hide_index=True, use_container_width=True)
                 st.caption('A high model score can still be wrong, especially on cluttered scenes or unseen materials.')
+                with st.spinner('Computing Grad-CAM...'):
+                    explained = explain_image(image, model, checkpoint)
+                st.subheader('Where the model looked')
+                st.image(explained['overlay'], width=320,
+                         caption=f"Grad-CAM for '{explained['explained_class']}'. Warm areas pushed the score up. "
+                                 'This shows influence, not proof the model reasons correctly.')
             except (OSError, ValueError, RuntimeError) as error:
                 st.error(f'Prediction could not complete: {error}')
 

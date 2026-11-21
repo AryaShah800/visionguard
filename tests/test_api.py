@@ -222,3 +222,20 @@ def test_real_predict_image_with_untrained_cnn(tmp_path):
     assert len(body['top_three']) == 3
     assert all(0 <= item['score'] <= 1 for item in body['top_three'])
     assert body['prediction'] == body['top_three'][0]['class']
+
+
+def test_explain_returns_png_with_prediction_header():
+    def fake_explain(image, model, checkpoint):
+        return image_bytes(), {'prediction': 'glass'}
+
+    client = TestClient(create_app(loader=FakeLoader(), explain=fake_explain))
+    response = client.post('/explain', files={'file': ('a.png', image_bytes(), 'image/png')})
+    assert response.status_code == 200
+    assert response.headers['content-type'] == 'image/png'
+    assert response.headers['x-prediction'] == 'glass'
+    assert response.content[:4] == bytes([0x89]) + b'PNG'
+
+
+def test_explain_rejects_non_images():
+    client = TestClient(create_app(loader=FakeLoader(), explain=lambda *a: (b'', {})))
+    assert client.post('/explain', files={'file': ('a.txt', b'hello', 'text/plain')}).status_code == 415
