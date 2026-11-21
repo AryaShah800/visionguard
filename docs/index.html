@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VisionGuard browser demo</title>
+<meta name="description" content="Waste image classifier running an int8 ONNX MobileNetV2 entirely in your browser.">
+<style>
+:root{--bg:#f6f5f1;--panel:#fff;--ink:#1d211e;--muted:#5d655f;--line:#d9dbd4;--accent:#2f6b4f;--accent-ink:#fff;--warn:#8a5a00;--warn-bg:#fbf1d9;--bar:#cfd8d1}
+@media (prefers-color-scheme:dark){:root{--bg:#121513;--panel:#1a1e1b;--ink:#e8ebe7;--muted:#9aa39c;--line:#2e342f;--accent:#6fb592;--accent-ink:#0f1a14;--warn:#e6c26b;--warn-bg:#2b2412;--bar:#2e3a32}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:880px;margin:0 auto;padding:32px 16px 56px}
+h1{font-size:1.6rem;margin:0 0 4px;letter-spacing:-.01em}
+.lede{color:var(--muted);margin:0 0 24px;max-width:60ch}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:720px){.grid{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px}
+h2{font-size:.95rem;margin:0 0 12px;font-weight:600}
+.drop{display:block;border:1px dashed var(--line);border-radius:6px;padding:16px;text-align:center;color:var(--muted);cursor:pointer}
+.drop:hover,.drop:focus-within{border-color:var(--accent)}
+.drop input{width:100%;margin-top:8px}
+.samples{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.samples button{padding:0;border:2px solid transparent;border-radius:6px;background:none;cursor:pointer;overflow:hidden;line-height:0}
+.samples button:focus-visible,.samples button[aria-pressed=true]{border-color:var(--accent);outline:none}
+.samples img{width:100%;aspect-ratio:4/3;object-fit:cover}
+.preview{width:100%;max-height:260px;object-fit:contain;border-radius:6px;background:var(--bg);display:none;margin-top:12px}
+.verdict{font-size:1.3rem;font-weight:600;margin:0 0 4px}
+.verdict.unsure{color:var(--warn)}
+.notice{background:var(--warn-bg);color:var(--warn);border-radius:6px;padding:8px 12px;margin:8px 0;font-size:.92rem}
+.row{display:grid;grid-template-columns:84px 1fr 56px;gap:8px;align-items:center;margin:8px 0;font-size:.92rem}
+.track{background:var(--bar);height:10px;border-radius:5px;overflow:hidden}
+.fill{background:var(--accent);height:100%}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.meta{color:var(--muted);font-size:.85rem;margin-top:12px}
+#status{color:var(--muted);font-size:.9rem;min-height:1.4em}
+.note{margin-top:16px;color:var(--muted);font-size:.9rem}
+.note ul{padding-left:18px;margin:8px 0 0}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<main>
+<h1>VisionGuard</h1>
+<p class="lede">Classifies a photo of one waste item as cardboard, glass, metal, paper, plastic or trash. The model runs in this page; your image is never sent to a server.</p>
+<div class="grid">
+  <section class="card" aria-labelledby="in">
+    <h2 id="in">Choose an image</h2>
+    <label class="drop">Upload a photo (JPEG, PNG or WebP)
+      <input id="file" type="file" accept="image/*">
+    </label>
+    <div class="samples" id="samples" role="group" aria-label="Sample images from the TrashNet test split"></div>
+    <img id="preview" class="preview" alt="Selected image">
+  </section>
+  <section class="card" aria-labelledby="out">
+    <h2 id="out">Result</h2>
+    <div id="status" role="status" aria-live="polite">Loading model...</div>
+    <div id="result" hidden>
+      <p class="verdict" id="verdict"></p>
+      <div id="notice" class="notice" hidden></div>
+      <div id="bars"></div>
+      <p class="meta" id="meta"></p>
+    </div>
+  </section>
+</div>
+<section class="note" aria-label="About this demo">
+  <strong>About this demo</strong>
+  <ul>
+    <li>Model: MobileNetV2 fine-tuned on <a href="https://github.com/garythung/trashnet">TrashNet</a> (MIT), static int8 ONNX (2.6 MB), run with onnxruntime-web (WebAssembly).</li>
+    <li>On the 379 held-out TrashNet test images the int8 model scores 90.5% accuracy and 88.9% macro-F1 (fp32: 91.3% / 89.8%; single training seed). Source: <a href="https://github.com/AryaShah800/visionguard/blob/main/reports/onnx_benchmark.json">reports/onnx_benchmark.json</a>.</li>
+    <li>TrashNet photos have plain backgrounds and one item per photo. Expect weaker results on cluttered real-world photos; the model has no "unknown object" class.</li>
+    <li>Scores are softmax outputs, not calibrated probabilities. Below 0.40 top score the demo says "not sure", the same rule as the CLI and Streamlit app.</li>
+    <li>Sample images are from the project's test split, courtesy of Gary Thung and Mindy Yang.</li>
+  </ul>
+</section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.min.js"></script>
+<script>
+'use strict';
+const CLASSES = ['cardboard', 'glass', 'metal', 'paper', 'plastic', 'trash'];
+const THRESHOLD = 0.4;           // checkpoint threshold (runs/baseline/finetuned.pt)
+const RESIZE = 232, CROP = 224;  // torchvision MobileNet_V2_Weights.IMAGENET1K_V2.transforms()
+const MEAN = [0.485, 0.456, 0.406], STD = [0.229, 0.224, 0.225];
+const $ = (id) => document.getElementById(id);
+
+// PIL-style bilinear (triangle filter) resampling with antialiasing, one axis, uint8 in/out (RGB interleaved).
+// torchvision's MobileNet_V2_Weights.IMAGENET1K_V2 transform uses InterpolationMode.BILINEAR.
+const FIX = 1 << 22;
+function bilinear(x) { x = Math.abs(x); return x < 1 ? 1 - x : 0; }
+function coeffs(inSize, outSize) {
+  const scale = inSize / outSize, fs = Math.max(scale, 1), support = 1 * fs;
+  const out = [];
+  for (let i = 0; i < outSize; i++) {
+    const c = (i + 0.5) * scale;
+    const lo = Math.max(Math.trunc(c - support + 0.5), 0);
+    const hi = Math.min(Math.trunc(c + support + 0.5), inSize);
+    const w = [];
+    let sum = 0;
+    for (let j = lo; j < hi; j++) { const v = bilinear((j - c + 0.5) / fs); w.push(v); sum += v; }
+    // Pillow stores 8-bit coefficients as 22-bit fixed point (rounded half away from zero).
+    out.push({ lo, w: w.map((v) => { const k = v / sum * FIX; return k < 0 ? Math.trunc(k - 0.5) : Math.trunc(k + 0.5); }) });
+  }
+  return out;
+}
+function resample(src, w, h, nw, nh) {
+  let cur = src, cw = w, ch = h;
+  const clamp = (v) => { v = Math.floor((v + FIX / 2) / FIX); return v < 0 ? 0 : v > 255 ? 255 : v; };
+  if (nw !== cw) {
+    const k = coeffs(cw, nw), dst = new Uint8ClampedArray(nw * ch * 3);
+    for (let y = 0; y < ch; y++) for (let x = 0; x < nw; x++) {
+      const { lo, w: ws } = k[x];
+      for (let c = 0; c < 3; c++) {
+        let s = 0;
+        for (let j = 0; j < ws.length; j++) s += ws[j] * cur[(y * cw + lo + j) * 3 + c];
+        dst[(y * nw + x) * 3 + c] = clamp(s);
+      }
+    }
+    cur = dst; cw = nw;
+  }
+  if (nh !== ch) {
+    const k = coeffs(ch, nh), dst = new Uint8ClampedArray(cw * nh * 3);
+    for (let y = 0; y < nh; y++) {
+      const { lo, w: ws } = k[y];
+      for (let x = 0; x < cw; x++) for (let c = 0; c < 3; c++) {
+        let s = 0;
+        for (let j = 0; j < ws.length; j++) s += ws[j] * cur[((lo + j) * cw + x) * 3 + c];
+        dst[(y * cw + x) * 3 + c] = clamp(s);
+      }
+    }
+    cur = dst; ch = nh;
+  }
+  return { data: cur, w: cw, h: ch };
+}
+
+// Returns Float32Array [1,3,224,224]: resize short side to 232, centre crop 224, scale to 0..1, normalise, CHW (RGB).
+function preprocess(bitmap) {
+  const cv = document.createElement('canvas');
+  cv.width = bitmap.width; cv.height = bitmap.height;
+  const ctx = cv.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(bitmap, 0, 0);
+  const rgba = ctx.getImageData(0, 0, cv.width, cv.height).data;
+  const rgb = new Uint8ClampedArray(cv.width * cv.height * 3);
+  for (let i = 0, j = 0; i < rgba.length; i += 4, j += 3) { rgb[j] = rgba[i]; rgb[j + 1] = rgba[i + 1]; rgb[j + 2] = rgba[i + 2]; }
+  const w = cv.width, h = cv.height;
+  const nw = w <= h ? RESIZE : Math.trunc(RESIZE * w / h);
+  const nh = w <= h ? Math.trunc(RESIZE * h / w) : RESIZE;
+  const r = resample(rgb, w, h, nw, nh);
+  const left = pyRound((r.w - CROP) / 2), top = pyRound((r.h - CROP) / 2);
+  const out = new Float32Array(3 * CROP * CROP);
+  for (let y = 0; y < CROP; y++) for (let x = 0; x < CROP; x++) for (let c = 0; c < 3; c++) {
+    const v = r.data[((y + top) * r.w + x + left) * 3 + c] / 255;
+    out[c * CROP * CROP + y * CROP + x] = (v - MEAN[c]) / STD[c];
+  }
+  return out;
+}
+// Python's round() is half-to-even; torchvision's centre crop uses it.
+function pyRound(v) { const f = Math.floor(v), d = v - f; return d < 0.5 ? f : d > 0.5 ? f + 1 : (f % 2 === 0 ? f : f + 1); }
+function softmax(l) {
+  const m = Math.max(...l), e = Array.from(l, (v) => Math.exp(v - m)), s = e.reduce((a, b) => a + b, 0);
+  return e.map((v) => v / s);
+}
+
+let sessionPromise = null;
+function getSession() {
+  if (!sessionPromise) {
+    ort.env.logLevel = 'error'; ort.env.wasm.numThreads = 1; // no cross-origin isolation needed on static hosting
+    sessionPromise = ort.InferenceSession.create('model_int8.onnx', { executionProviders: ['wasm'] });
+  }
+  return sessionPromise;
+}
+
+async function classify(bitmap) {
+  if (bitmap.width < 16 || bitmap.height < 16) throw new Error('Use an image at least 16 by 16 pixels.');
+  const session = await getSession();
+  const t0 = performance.now();
+  const input = preprocess(bitmap);
+  const t1 = performance.now();
+  const out = await session.run({ image: new ort.Tensor('float32', input, [1, 3, CROP, CROP]) });
+  const t2 = performance.now();
+  const probs = softmax(out.logits.data);
+  const ranked = probs.map((p, i) => i).sort((a, b) => probs[b] - probs[a]).slice(0, 3);
+  return {
+    prediction: CLASSES[ranked[0]],
+    uncertain: probs[ranked[0]] < THRESHOLD,
+    threshold: THRESHOLD,
+    top_three: ranked.map((i) => ({ class: CLASSES[i], score: probs[i] })),
+    probabilities: probs,
+    preprocess_ms: t1 - t0, inference_ms: t2 - t1
+  };
+}
+
+function render(r) {
+  const pct = (v) => (v * 100).toFixed(1) + '%';
+  const top = r.top_three[0];
+  $('verdict').textContent = r.uncertain ? 'Not sure' : top.class;
+  $('verdict').className = 'verdict' + (r.uncertain ? ' unsure' : '');
+  const n = $('notice');
+  n.hidden = !r.uncertain;
+  if (r.uncertain) n.textContent = 'Top score ' + pct(top.score) + ' is below the ' + r.threshold.toFixed(2) + ' threshold, so the model abstains. Closest guess: ' + top.class + '.';
+  $('bars').innerHTML = '';
+  for (const t of r.top_three) {
+    const row = document.createElement('div'); row.className = 'row';
+    row.innerHTML = '<span></span><div class="track"><div class="fill"></div></div><span class="num"></span>';
+    row.children[0].textContent = t.class;
+    row.querySelector('.fill').style.width = (t.score * 100).toFixed(1) + '%';
+    row.children[2].textContent = pct(t.score);
+    $('bars').appendChild(row);
+  }
+  $('meta').textContent = 'Preprocess ' + r.preprocess_ms.toFixed(0) + ' ms, inference ' + r.inference_ms.toFixed(0) + ' ms (WebAssembly, 1 thread, this device).';
+  $('result').hidden = false;
+  $('result').dataset.json = JSON.stringify(r);
+}
+
+async function run(blobOrUrl) {
+  $('status').textContent = 'Classifying...';
+  try {
+    const blob = typeof blobOrUrl === 'string' ? await (await fetch(blobOrUrl)).blob() : blobOrUrl;
+    const bitmap = await createImageBitmap(blob); // honours EXIF orientation by default
+    const p = $('preview'); p.src = URL.createObjectURL(blob); p.style.display = 'block';
+    render(await classify(bitmap));
+    $('status').textContent = '';
+  } catch (e) {
+    $('result').hidden = true;
+    $('status').textContent = 'Could not classify: ' + (e.message || e);
+  }
+}
+
+$('file').addEventListener('change', (e) => {
+  document.querySelectorAll('#samples button').forEach((b) => b.setAttribute('aria-pressed', 'false'));
+  if (e.target.files[0]) run(e.target.files[0]);
+});
+fetch('samples/index.json').then((r) => r.json()).then((list) => {
+  for (const s of list) {
+    const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-pressed', 'false');
+    b.title = s.label + ' sample';
+    const img = document.createElement('img'); img.src = 'samples/' + s.file; img.alt = 'Sample ' + s.label;
+    b.appendChild(img);
+    b.addEventListener('click', () => {
+      document.querySelectorAll('#samples button').forEach((x) => x.setAttribute('aria-pressed', 'false'));
+      b.setAttribute('aria-pressed', 'true'); run('samples/' + s.file);
+    });
+    $('samples').appendChild(b);
+  }
+}).catch(() => {});
+getSession().then(() => { $('status').textContent = 'Model ready. Choose an image.'; document.body.dataset.ready = '1'; })
+  .catch((e) => { $('status').textContent = 'Could not load the model: ' + (e.message || e); });
+</script>
+</body>
+</html>
