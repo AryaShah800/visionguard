@@ -1,0 +1,52 @@
+{
+  "selected_model": "finetuned",
+  "test_images": 379,
+  "calibration_images": 100,
+  "torch_threads": 4,
+  "onnxruntime_threads": "default",
+  "cpu": "13th Gen Intel(R) Core(TM) i5-13420H",
+  "python": "3.13.9",
+  "torch": "2.7.1+cpu",
+  "onnxruntime": "1.32.0",
+  "size_mb": {
+    "pytorch_checkpoint": 9.16,
+    "onnx_fp32": 8.9,
+    "onnx_int8": 2.62
+  },
+  "pytorch_fp32": {
+    "accuracy": 0.9129,
+    "macro_f1": 0.8975,
+    "top1_agreement_with_pytorch": 1.0,
+    "max_abs_logit_diff_vs_pytorch": 0.0,
+    "latency_batch1": {
+      "median_ms": 49.23,
+      "p95_ms": 65.81,
+      "rounds": 3,
+      "runs_per_round": 100
+    }
+  },
+  "onnx_fp32": {
+    "accuracy": 0.9129,
+    "macro_f1": 0.8975,
+    "top1_agreement_with_pytorch": 1.0,
+    "max_abs_logit_diff_vs_pytorch": 4e-05,
+    "latency_batch1": {
+      "median_ms": 8.15,
+      "p95_ms": 20.69,
+      "rounds": 3,
+      "runs_per_round": 100
+    }
+  },
+  "onnx_int8": {
+    "accuracy": 0.905,
+    "macro_f1": 0.8885,
+    "top1_agreement_with_pytorch": 0.9763,
+    "max_abs_logit_diff_vs_pytorch": 3.06368,
+    "latency_batch1": {
+      "median_ms": 5.87,
+      "p95_ms": 13.44,
+      "rounds": 3,
+      "runs_per_round": 100
+    }
+  }
+}

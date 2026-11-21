@@ -41,3 +41,20 @@ def test_gradcam_leaves_model_params_without_grads_when_frozen():
     model = build_model('frozen')
     gradcam(model, sample())
     assert all(p.grad is None for p in model.features.parameters())
+
+
+def test_onnx_int8_predictions_track_pytorch_when_exported():
+    """Runs only after scripts/onnx_benchmark.py has written runs/onnx (local artifact)."""
+    root = Path(__file__).resolve().parents[1]
+    model_path = root / 'runs/onnx/model_fp32.onnx'
+    if not model_path.exists():
+        pytest.skip('run scripts/onnx_benchmark.py first')
+    import torch
+    from vg.models import load_model
+    from vg.onnx_tools import OnnxPredictor, preprocess
+    torch_model, _ = load_model(root / 'runs/baseline/finetuned.pt')
+    image = sample()
+    with torch.inference_mode():
+        expected = torch_model(torch.from_numpy(preprocess(image))[None]).numpy()
+    actual = OnnxPredictor(model_path).logits(preprocess(image)[None])
+    assert np.abs(expected - actual).max() < 1e-3

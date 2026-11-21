@@ -279,4 +279,13 @@ def create_app(loader=load_predictor, predict=predict_image, run_dir=None, expla
     return app
 
 
-app = create_app()
+def create_default_app():
+    """VG_BACKEND=onnx serves the exported int8 model (python scripts/onnx_benchmark.py creates it); default is PyTorch."""
+    if os.environ.get('VG_BACKEND', 'pytorch').lower() == 'onnx':
+        from .onnx_tools import load_onnx_predictor, predict_image_onnx
+        return create_app(loader=load_onnx_predictor, predict=predict_image_onnx,
+                          explain=lambda *a, **k: (_ for _ in ()).throw(HTTPException(501, 'Grad-CAM needs the PyTorch backend.')))
+    return create_app()
+
+
+app = create_default_app()
