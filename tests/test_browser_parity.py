@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 DOCS = Path(__file__).resolve().parents[1] / 'docs'
 MODEL = DOCS / 'model_int8.onnx'
 PROB_TOLERANCE = 0.001
+pytest.importorskip('onnxruntime')
 pytestmark = pytest.mark.skipif(not MODEL.exists(), reason='docs/model_int8.onnx missing')
 
 
