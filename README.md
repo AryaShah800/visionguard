@@ -2,6 +2,8 @@
 
 **Waste image classification with reproducible transfer learning, honest evaluation, Grad-CAM explanations and an int8 ONNX build.**
 
+**Live demo:** _(link added after deploy)_ A static in-browser demo ([docs/index.html](docs/index.html)): the 2.6 MB int8 ONNX model runs in the page with onnxruntime-web, so images never leave the device. Same preprocessing and 0.40 abstain rule as the CLI; `tests/test_browser_parity.py` checks the browser output against Python onnxruntime (max probability difference below 1e-3 on 8 images). Run it locally with `python -m http.server -d docs`.
+
 [![Tests](https://github.com/AryaShah800/visionguard/actions/workflows/tests.yml/badge.svg)](https://github.com/AryaShah800/visionguard/actions/workflows/tests.yml)
 
 ![Streamlit demo: prediction, scores and Grad-CAM](docs/demo.png)
