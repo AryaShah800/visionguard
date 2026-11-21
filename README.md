@@ -1,20 +1,40 @@
 # VisionGuard
 
-**Waste image classification with reproducible transfer learning and honest evaluation.**
-
-The [FastAPI serving guide](docs/SERVING.md) includes a tested CPU Docker image, upload validation and MLflow import of the measured experiments. This is a local service; no public Hugging Face deployment is claimed.
+**Waste image classification with reproducible transfer learning, honest evaluation, Grad-CAM explanations and an int8 ONNX build.**
 
 [![Tests](https://github.com/AryaShah800/visionguard/actions/workflows/tests.yml/badge.svg)](https://github.com/AryaShah800/visionguard/actions/workflows/tests.yml)
 
-| Model | Result on 379 held-out TrashNet images |
-| --- | --- |
-| Fine-tuned MobileNetV2 (selected) | 89.75% macro-F1 (single seed) |
-| Frozen MobileNetV2 | 80.85% macro-F1 |
-| Small CNN from scratch | 63.23% macro-F1 |
+![Streamlit demo: prediction, scores and Grad-CAM](docs/demo.png)
 
-VisionGuard compares a small CNN trained from scratch, an ImageNet-pretrained MobileNetV2 with a frozen backbone, and a partially fine-tuned MobileNetV2. It predicts one of six TrashNet categories: cardboard, glass, metal, paper, plastic and trash.
+| Model | Macro-F1 on 379 held-out TrashNet images | 95% CI (test-set bootstrap) |
+| --- | --- | --- |
+| Fine-tuned MobileNetV2 (selected on validation) | **89.75%** (single seed) | 85.8 - 93.0 |
+| Frozen MobileNetV2 | 80.85% | not computed |
+| Small CNN from scratch | 63.23% | not computed |
 
-The final model is selected using validation macro-F1. A separate command evaluates the held-out test set and produces a comparison table, confusion matrix, training curves, error gallery and latency measurements. A local Streamlit app lets you explore predictions and measured results.
+Reproduce: `python -m vg evaluate --run runs/baseline`, `python scripts/bootstrap_ci.py`. The interval covers test-set sampling only; training-seed variance is not measured. Full details: [MODEL_CARD.md](MODEL_CARD.md).
+
+## What is in the box
+| Feature | Where | Evidence |
+| --- | --- | --- |
+| Leak-aware split (perceptual-hash groups), validation-only model selection | `vg/data.py`, `vg/train.py` | [reports/REPORT.md](reports/REPORT.md) |
+| Grad-CAM explanations (CLI, `POST /explain`, demo panel) | `vg/explain.py` | [correct](reports/gradcam_correct.png) and [wrong](reports/gradcam_errors.png) predictions, manifest order, `python scripts/make_gradcam_gallery.py` |
+| ONNX export + static int8 quantization, parity and latency | `vg/onnx_tools.py`, `scripts/onnx_benchmark.py` | [reports/onnx_benchmark.json](reports/onnx_benchmark.json) |
+| FastAPI service, upload hardening, CPU Docker image, optional ONNX backend (`VG_BACKEND=onnx`) | `vg/api.py`, [docs/SERVING.md](docs/SERVING.md) | `tests/test_api.py` |
+| Streamlit demo, MLflow import of the experiments | `app.py`, `scripts/track_existing.py` | `tests/test_app.py` |
+
+### Measured compression (same 379 test images, batch-1 CPU, model only)
+| Variant | Size | Macro-F1 | Top-1 agreement with PyTorch | Latency median / p95 |
+| --- | --- | --- | --- | --- |
+| PyTorch fp32 | 9.16 MB | 0.8975 | - | 49.2 / 65.8 ms |
+| ONNX fp32 | 8.90 MB | 0.8975 | 100% | 8.2 / 20.7 ms |
+| ONNX int8 (static, 100 calibration images) | 2.62 MB | 0.8885 | 97.6% | 5.9 / 13.4 ms |
+
+Run `pip install -r requirements-onnx.txt` then `python scripts/onnx_benchmark.py`. Latency was measured on a 13th Gen Intel i5-13420H laptop that was running other jobs (PyTorch 4 threads vs onnxruntime default threads, 3 rounds x 100 runs); treat it as indicative. int8 costs 0.9 macro-F1 points on this split.
+
+The [FastAPI serving guide](docs/SERVING.md) includes a tested CPU Docker image and upload validation. This is a local service; **no public Hugging Face deployment is claimed** (Space files are prepared in `space/`).
+
+VisionGuard compares a small CNN trained from scratch, an ImageNet-pretrained MobileNetV2 with a frozen backbone, and a partially fine-tuned MobileNetV2. It predicts one of six TrashNet categories: cardboard, glass, metal, paper, plastic and trash. The final model is selected using validation macro-F1; a separate command evaluates the held-out test set.
 
 ## Quick start on Windows
 
