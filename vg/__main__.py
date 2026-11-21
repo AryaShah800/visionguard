@@ -2,7 +2,7 @@ import argparse
 import json
 from pathlib import Path
 
-from .common import ROOT
+from .common import CLASSES, ROOT
 
 
 def main():
@@ -33,6 +33,11 @@ def main():
     predict = commands.add_parser('predict')
     predict.add_argument('image', type=Path)
     predict.add_argument('--run', type=Path, default=ROOT / 'runs/baseline')
+    explain = commands.add_parser('explain')
+    explain.add_argument('image', type=Path)
+    explain.add_argument('--out', type=Path, default=Path('gradcam.png'))
+    explain.add_argument('--run', type=Path, default=ROOT / 'runs/baseline')
+    explain.add_argument('--target', choices=CLASSES, help='explain this class instead of the predicted one')
     lock = commands.add_parser('lock-challenge')
     lock.add_argument('--images', type=Path, required=True)
     lock.add_argument('--manifest', type=Path, default=ROOT / 'data/challenge.json')
@@ -59,6 +64,16 @@ def main():
     elif args.command == 'predict':
         from .predict import predict_file
         print(json.dumps(predict_file(args.image, args.run), indent=2))
+    elif args.command == 'explain':
+        from PIL import Image
+        from .explain import explain_image
+        from .predict import load_predictor
+        model, checkpoint = load_predictor(args.run)
+        with Image.open(args.image) as image:
+            result = explain_image(image, model, checkpoint, CLASSES.index(args.target) if args.target else None)
+        result['overlay'].save(args.out)
+        print(json.dumps({'prediction': result['prediction'], 'explained_class': result['explained_class'],
+                          'score': result['score'], 'overlay': str(args.out)}, indent=2))
     elif args.command == 'lock-challenge':
         from .challenge import lock_challenge
         lock_challenge(args.images, args.manifest, args.benchmark)
