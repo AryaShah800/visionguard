@@ -3,6 +3,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+import torch
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -18,13 +19,16 @@ def sample():
 
 @pytest.mark.parametrize('kind', ['cnn', 'frozen', 'finetuned'])
 def test_gradcam_shape_range_and_target(kind):
+    torch.manual_seed(0)  # head init is random; seed so the CAM is reproducible
     model = build_model(kind)
     cam, predicted, index, scores = gradcam(model, sample())
     assert cam.shape == (224, 224)
     assert 0.0 <= cam.min() and cam.max() <= 1.0
     assert predicted == index and abs(scores.sum() - 1) < 1e-5
-    if kind != 'cnn':  # an untrained small CNN can legitimately yield an all-negative (zero after ReLU) map
-        assert cam.max() > 0
+    # Grad-CAM applies ReLU, so an untrained net can legitimately give an all-zero map (documented: zeros, never NaN).
+    assert np.isfinite(cam).all()
+    if kind != 'cnn':
+        assert cam.max() > 0  # holds for the seeded init above
 
 
 def test_gradcam_explains_requested_class_and_overlay_matches_crop():
